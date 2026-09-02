@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "allowArbitraryExtensions": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "erasableSyntaxOnly": true,
+    "lib": ["DOM", "ESNext"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "ESNext",
+    "types": ["vite/client", "@webgpu/types"],
+    "verbatimModuleSyntax": true
+  },
+  "include": ["../src/*.ts", "*.ts"],
+  "exclude": [
+    "../src/*_test.ts",
+    "../src/*_bench.ts",
+    "*_test.ts",
+    "*_bench.ts"
+  ]
+}

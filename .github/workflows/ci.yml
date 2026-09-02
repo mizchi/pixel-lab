@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.24.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.6.4
+      - uses: extractions/setup-just@v4
+      - name: Set up wasm-tools
+        run: |
+          curl --fail --location --silent --show-error \
+            --output "$RUNNER_TEMP/wasm-tools.tar.gz" \
+            https://github.com/bytecodealliance/wasm-tools/releases/download/v1.245.1/wasm-tools-1.245.1-x86_64-linux.tar.gz
+          echo "b171e20fd107e63e89ef6c936b5581597666a086af677d7818de92b7cdd5a86d  $RUNNER_TEMP/wasm-tools.tar.gz" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/wasm-tools"
+          tar -xzf "$RUNNER_TEMP/wasm-tools.tar.gz" -C "$RUNNER_TEMP/wasm-tools" --strip-components=1
+          echo "$RUNNER_TEMP/wasm-tools" >> "$GITHUB_PATH"
+      - run: pnpm install --frozen-lockfile
+      - run: just check
