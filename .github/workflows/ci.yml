@@ -25,7 +25,7 @@ jobs:
           cache: pnpm
       - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
-          deno-version: v2.6.4
+          deno-version: v2.9.6
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
       - name: Set up wasm-tools
         run: |
