@@ -22,6 +22,11 @@ Open:
 
 <http://127.0.0.1:5173/?run=pixel&runtime=worker-reaction-simd&size=512&occupancy=25&region=full>
 
+The same demo is deployed to
+<https://mizchi.github.io/pixel-lab/?run=pixel&runtime=worker-reaction-simd&size=512&occupancy=25&region=full>.
+GitHub Pages has no custom response-header configuration, so a site-scoped Service Worker adds the
+COOP/COEP headers required by `SharedArrayBuffer`; it is not part of the application bundle.
+
 The reaction Worker uses a compact `u32` cell ABI, active 2x2 movement, a dense SIMD thermal and
 chemistry pass, `SharedArrayBuffer` input, and `OffscreenCanvas` presentation. Other query-selectable
 backends retain scalar, sparse, SIMD, and WebGPU baselines.

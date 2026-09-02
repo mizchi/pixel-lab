@@ -2,6 +2,7 @@ import { Buffer } from "node:buffer";
 import { defineConfig } from "vite";
 
 export default defineConfig({
+  base: process.env.PIXEL_LAB_BASE ?? "/",
   build: { assetsInlineLimit: 0 },
   server: {
     headers: {

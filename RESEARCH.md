@@ -355,7 +355,7 @@ classification, not the number of descriptors, remains the scaling boundary.
 
 The movement kernel grows from 2,283 to 2,389 raw bytes and the fused reaction kernel from 1,430 to
 2,352 bytes, for 4,741 raw bytes combined. In the production-shaped Vite build the reaction Wasm is
-1,015 B gzip, the standalone live-reaction showcase chunk is 5,579 B gzip, and the complete reaction Worker route is 14,920 B
+1,015 B gzip, the standalone live-reaction showcase chunk is 5,556 B gzip, and the complete reaction Worker route is 14,920 B
 gzip. Neither enters the signals or Luna core entrypoints.
 
 Acid corrosion, lava-water solidification, fire/lava spread, and water extinguishing fire into smoke
@@ -707,7 +707,7 @@ VM remains application code rather than becoming UI-core.
 
 The standalone reaction-event entry is currently 2,705 B gzip. Its Wasm-vs-WebGPU benchmark uses a
 separate HTML/esbuild graph so importing the oracle cannot perturb the Pixel Lab production-shaped
-Vite chunks. The standalone live-reaction Pixel Lab chunk is 5,579 B gzip under its 5,600 B
+Vite chunks. The standalone live-reaction Pixel Lab chunk is 5,556 B gzip under its 5,600 B
 experimental gate; the separate browser entry is much smaller than the former shared UI comparison
 entry.
 

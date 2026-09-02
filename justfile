@@ -17,17 +17,26 @@ build-web: build-wasm
 
 build: build-web
 
+build-pages: build-wasm
+    PIXEL_LAB_BASE=/pixel-lab/ pnpm --config.verify-deps-before-run=false exec tsc -p web/tsconfig.json
+    PIXEL_LAB_BASE=/pixel-lab/ pnpm --config.verify-deps-before-run=false exec vite build web
+
 test: build-wasm
     deno test -A src web/dom_test.ts
 
 check-bundles: build-web
     node_modules/esbuild/bin/esbuild fixtures/pixel-event-tape-entry.ts --bundle --format=esm --platform=browser --target=es2022 --minify --outfile=fixtures/dist/pixel-event-tape.js
-    test "$(gzip -9 -c web/dist/assets/pixel_demo-*.js | wc -c | tr -d ' ')" -le 5600
-    test "$(gzip -9 -c fixtures/dist/pixel-event-tape.js | wc -c | tr -d ' ')" -le 1080
+    test "$(gzip -9 -n -c web/dist/assets/pixel_demo-*.js | wc -c | tr -d ' ')" -le 5600
+    test "$(gzip -9 -n -c fixtures/dist/pixel-event-tape.js | wc -c | tr -d ' ')" -le 1080
     test "$(wc -c < src/pixel_block_step.wasm | tr -d ' ')" -le 2390
     test "$(wc -c < src/pixel_reaction_step.wasm | tr -d ' ')" -le 2355
 
-check: test check-bundles
+test-pages: build-pages
+    rg -q '/pixel-lab/assets/' web/dist/index.html
+    test -f web/dist/coi-serviceworker.js
+    rg -q 'Cross-Origin-Embedder-Policy' web/dist/coi-serviceworker.js
+
+check: test check-bundles test-pages
     deno check tools/*.ts src/*_bench.ts fixtures/*.ts
     deno fmt --check src web fixtures tools benchlib
 
