@@ -32,9 +32,9 @@ check-bundles: build-web
     test "$(wc -c < src/pixel_reaction_step.wasm | tr -d ' ')" -le 2355
 
 test-pages: build-pages
-    rg -q '/pixel-lab/assets/' web/dist/index.html
+    grep -q '/pixel-lab/assets/' web/dist/index.html
     test -f web/dist/coi-serviceworker.js
-    rg -q 'Cross-Origin-Embedder-Policy' web/dist/coi-serviceworker.js
+    grep -q 'Cross-Origin-Embedder-Policy' web/dist/coi-serviceworker.js
 
 check: test check-bundles test-pages
     deno check tools/*.ts src/*_bench.ts fixtures/*.ts
