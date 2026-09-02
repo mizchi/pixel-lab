@@ -62,7 +62,7 @@ export async function runPixelBlockWebGpuEventBenchmark(): Promise<
       samplesMs,
       browser: {
         userAgent: navigator.userAgent,
-        platform: navigator.platform,
+        platform: navigator.userAgent,
         logicalCpus: navigator.hardwareConcurrency,
       },
     };

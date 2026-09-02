@@ -860,7 +860,7 @@ export async function mountPixelDemo(
     },
     browser: {
       userAgent: navigator.userAgent,
-      platform: navigator.platform,
+      platform: navigator.userAgent,
       logicalCpus: navigator.hardwareConcurrency,
       crossOriginIsolated: globalThis.crossOriginIsolated,
     },

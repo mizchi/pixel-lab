@@ -72,7 +72,7 @@ export async function runPixelReactionWebGpuEventBenchmark(): Promise<
     adapter,
     browser: {
       userAgent: navigator.userAgent,
-      platform: navigator.platform,
+      platform: navigator.userAgent,
       logicalCpus: navigator.hardwareConcurrency,
     },
   };
