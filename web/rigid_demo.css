@@ -1,0 +1,53 @@
+#rigid-canvas {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 8 / 5;
+  border: 1px solid #315347;
+  border-radius: 12px;
+  background: #111a17;
+  image-rendering: pixelated;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+#rigid-canvas:active {
+  cursor: grabbing;
+}
+
+#rigid-canvas:focus-visible {
+  outline: 2px solid #9dff73;
+  outline-offset: 3px;
+}
+
+.rigid-label {
+  position: absolute;
+  z-index: 3;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid rgb(239 196 93 / 35%);
+  border-radius: 999px;
+  color: #f4c45d;
+  background: rgb(9 21 18 / 82%);
+  font: 700 0.58rem/1 monospace;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+}
+
+.rigid-chain-label {
+  top: 10%;
+  left: 7%;
+}
+
+.rigid-bridge-label {
+  top: 10%;
+  left: 38%;
+}
+
+.rigid-gel-label {
+  top: 10%;
+  right: 5%;
+}
+
+.rigid-controls {
+  flex-wrap: wrap;
+}

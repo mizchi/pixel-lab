@@ -19,6 +19,7 @@ const MATERIAL_COLORS = [
   0xff7a7470,
   0xff4bda58,
   0xff1e55ff,
+  0xffd65ce8,
 ] as const;
 
 installPixelWorker(async (width, height, occupancy, region) => {
@@ -44,7 +45,7 @@ installPixelWorker(async (width, height, occupancy, region) => {
 
 function asBlockMaterial(value: number): PixelMaterial {
   if (
-    Number.isInteger(value) && value >= MATERIAL.empty && value <= MATERIAL.lava
+    Number.isInteger(value) && value >= MATERIAL.empty && value <= MATERIAL.gel
   ) {
     return value as PixelMaterial;
   }

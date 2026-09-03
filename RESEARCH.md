@@ -365,10 +365,97 @@ an explicit priority: solidification, extinguishing, corrosion, phase change, th
 time-based burning lifetime remains unimplemented; it needs an explicit contract for reusing the
 temperature, flags, or variant byte.
 
-The default reaction demo uses a labeled 5 x 2 lab. The upper row keeps all twelve ABI materials
+The default reaction demo uses a labeled 6 x 2 lab. The upper row keeps all thirteen ABI materials
 available as isolated references; the lower row shows density exchange, extinguishing/vaporization,
-solidification, corrosion, and ignition. Demo-only sources are restored every 90 ticks so irreversible
-reactions remain observable without changing the reaction kernel or any Luna/signals entrypoint.
+solidification, corrosion, ignition, and gel impact fracture. Demo-only sources are restored every 90
+ticks so irreversible reactions remain observable without changing the reaction kernel or any
+Luna/signals entrypoint.
+
+### Adhesive gel experiment
+
+Gel is material 12 and stays inside the one-`u32` cell ABI. Flag bit 0 means bonded, flag bit 1 means
+fractured, and the variant byte stores either accumulated fall momentum or the re-bond cooldown. It
+bonds to wall, sand, stone, and wood below momentum 72. At or above 72 it fractures for eight ticks,
+then can attach again. Free-fall adds 24 momentum per tick, capped at 255. Horizontal flow is admitted
+on one quarter of otherwise eligible updates, while gravity remains unchanged; this gives visibly
+slower spreading without another viscosity buffer.
+
+The scalar oracle, scalar Wasm tail, and four-lane SIMD path share this contract and are checked for
+cell-for-cell parity. A combined active-movement/reaction integration test also covers bond, fracture,
+cooldown, and re-bond. This is a local adhesion model rather than connected-component fracture: it
+does not yet transmit stress through a gel cluster or split a cluster based on aggregate impulse.
+
+After adding gel, movement Wasm is 2,671 raw bytes / 1,306 B gzip and reaction Wasm is 3,199 raw bytes
+/ 1,297 B gzip. The main demo chunk remains 5,566 B gzip. Both Wasm files and the reaction Worker are
+route-lazy assets, so this experiment does not enter a signals or Luna core entrypoint. Tight raw-size
+gates remain at 2,700 and 3,200 bytes respectively.
+
+## Hybrid rods and connected rigid structures
+
+The first rigid prototype deliberately does not encode body ownership into pixel cells. It keeps a
+fixed-capacity SoA layer with particle position, previous position, velocity, inverse mass, and an
+optional gel-cell bond. Rods contain two particle indices, rest length, break strain, and an active
+bit. Two rods sharing one particle form a hinge, so chains and bridge-like structures need no object
+graph allocation during a tick.
+
+Each step integrates particles, performs swept grid contact, and projects distance constraints for a
+fixed iteration count. Wall, sand, stone, and wood block particles. A low-speed contact with gel pins
+the particle to the gel cell; velocity above the configured threshold detaches it. A rod whose
+relative length error exceeds its break strain is disabled permanently. Constraint contacts return
+bit flags instead of allocating result objects in the hot loop.
+
+The storage cost is 32 bytes per particle and 21 bytes per rod, independent of pixel resolution. The
+extra four-byte rod field retains peak strain for break-risk visualization without per-frame
+allocation. For 4,096 independent rods / 8,192 particles this is 340 KiB. On Apple M5 with eight
+constraint iterations, the scalar SoA prototype measured 71.0 us for 256 rods, 293.7 us for 1,024
+rods, and 1.3 ms for 4,096 rods. The near-linear result makes batches of homogeneous constraints a
+plausible future Wasm SIMD target; graph coloring or disjoint constraint batches are still required
+when rods share particles.
+
+The optional two-way support adapter rasterizes active rod segments into temporary wall cells before
+the pixel step, retaining only the touched cell indices for restoration. Pixel columns above those
+cells contribute material-weighted downward load, while particles from another rod collide with the
+temporary support and contribute their own load. Incident particles ignore their own rod markers.
+The marker stores a 15-bit rod ID in existing cell metadata, enough for 32,767 rods, and does not
+change the one-`u32` pixel ABI. Movable materials reuse positive density as weight; immovable stone
+and wood have separate support weights because their movement density is intentionally zero.
+
+The base support raster stores one four-byte touched-cell index per entry. The load-cache option adds
+one `u32` revision and one `f32` weight, for 12 bytes per entry without a full-world buffer. The demo
+uses 1,024 entries / 12 KiB. A 4,096-rod world with average 12-cell segments would use 192 KiB for
+indices only or 576 KiB with every cache slot provisioned. Rigid-particle support probes remain
+bounded to 24 cells.
+
+The cache is deliberately adaptive. Empty columns and columns shallower than four material cells are
+rescanned directly and perform no revision lookup. Deeper columns reuse their weight until the
+covering active-chunk revision changes. Adjacent support cells are emitted in rod order, so their
+loads are aggregated and endpoint geometry plus `addRodLoad` run once per loaded rod rather than once
+per raster cell. The persistent `rigid_rod_bench.ts` benchmark on Apple M5 measured representative
+16-cell columns as follows (Deno 2.9.6; ordinary scheduler variance included):
+
+| rods | uncached support | cached support | reduction |
+| ---: | ---: | ---: | ---: |
+| 256 | 41–70 us | 19–24 us | about 2x |
+| 1,024 | 169–187 us | 74–83 us | about 2.2x |
+| 4,096 | 693–755 us | 331–341 us | about 2.1x |
+
+Chunk revisions are opt-in. The 256 x 160 demo adds only 160 bytes (40 chunks times one `u32`) to the
+active SIMD world; the 1,024-entry support cache adds 8 KiB over its index-only form. A paired active
+movement run measured roughly 2.4% average step overhead while tracking revisions. Pixel Lab's normal
+paths do not enable it, so they retain the original memory and update cost.
+
+The demo is a separate `?run=rigid` dynamic entrypoint over the existing reaction Wasm. Its own
+payload is 6,859 B gzip JavaScript and 390 B gzip CSS in the local production build, under a 6,900 B
+gate. The common page entry is 1,608 B gzip. Rod
+color and width visualize the retained peak strain normalized against each break threshold: gold is
+relaxed and thick red is close to fracture. Interactive dragging applies a capped spring
+velocity instead of teleporting particles, ignores pinned endpoints, and stops drawing disabled rods.
+The loaded-bridge scenario combines falling sand and another chain, transfers both loads, and drops
+the material after supporting rods break. The existing Pixel demo remains under its 5,600 B gate.
+This coupling is intentionally approximate: its one-cell raster and vertical load columns are not a
+momentum-conserving contact manifold. Other limitations are point-sized endpoints, no angular shape
+inertia, and no stress propagation through a welded body. The next semantic step is a breakable
+triangle/plate made from three distance constraints, followed by constraint coloring for SIMD.
 
 ## Decision
 

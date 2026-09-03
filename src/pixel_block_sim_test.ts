@@ -9,6 +9,7 @@ import {
   pixelMaterial,
 } from "./pixel_sim.ts";
 import { ALL_PIXEL_MATERIALS } from "./pixel_material.ts";
+import { PIXEL_GEL_BONDED_FLAG } from "./pixel_material.ts";
 
 function assertEquals(
   actual: unknown,
@@ -74,7 +75,7 @@ Deno.test("pixel block movement conserves complete cells for every local materia
       }
     }
   }
-  assertEquals(states, 20_736);
+  assertEquals(states, materials.length ** 4);
 });
 
 Deno.test("pixel block gravity sinks dense cells and raises gas", () => {
@@ -171,6 +172,30 @@ Deno.test("pixel block immovable materials block movement while new fluids flow"
   }
 });
 
+Deno.test("free gel flows laterally more slowly than water", () => {
+  let waterMoves = 0;
+  let gelMoves = 0;
+  for (let seed = 0; seed < 256; seed++) {
+    for (const material of [MATERIAL.water, MATERIAL.gel] as const) {
+      const cells = new Uint32Array([
+        packPixel(material),
+        packPixel(MATERIAL.empty),
+        packPixel(MATERIAL.wall),
+        packPixel(MATERIAL.wall),
+      ]);
+      const result = stepPixelWorldBlock(cells, 2, 2, 0, seed);
+      if (material === MATERIAL.water) waterMoves += result.moves;
+      else gelMoves += result.moves;
+    }
+  }
+
+  assert(gelMoves > 0, "gel must still flow laterally");
+  assert(
+    gelMoves * 2 < waterMoves,
+    `gel must flow at less than half the water rate: ${gelMoves}/${waterMoves}`,
+  );
+});
+
 Deno.test("pixel block cells move at most once per tick", () => {
   const fallingWater = new Uint32Array([
     packPixel(MATERIAL.water),
@@ -233,6 +258,33 @@ Deno.test("pixel block lateral liquid movement is seeded instead of directionall
     outcomes.add(Array.from(cells, pixelMaterial).join(","));
   }
   assertEquals(outcomes.size, 2);
+});
+
+Deno.test("bonded gel stays attached while loose gel remains movable", () => {
+  const bonded = new Uint32Array([
+    packPixel(MATERIAL.gel, 128, PIXEL_GEL_BONDED_FLAG),
+    packPixel(MATERIAL.wall),
+    packPixel(MATERIAL.empty),
+    packPixel(MATERIAL.wall),
+  ]);
+  const loose = bonded.slice();
+  loose[0] = packPixel(MATERIAL.gel);
+
+  stepPixelWorldBlock(bonded, 2, 2, 0, 1);
+  stepPixelWorldBlock(loose, 2, 2, 0, 1);
+
+  assertEquals(Array.from(bonded, pixelMaterial), [
+    MATERIAL.gel,
+    MATERIAL.wall,
+    MATERIAL.empty,
+    MATERIAL.wall,
+  ]);
+  assertEquals(Array.from(loose, pixelMaterial), [
+    MATERIAL.empty,
+    MATERIAL.wall,
+    MATERIAL.gel,
+    MATERIAL.wall,
+  ]);
 });
 
 Deno.test("pixel block replay is deterministic and conserves a closed mixed world", () => {

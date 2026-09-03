@@ -11,6 +11,7 @@ export const MATERIAL = {
   smoke: 9,
   acid: 10,
   lava: 11,
+  gel: 12,
 } as const;
 
 export type PixelMaterial = (typeof MATERIAL)[keyof typeof MATERIAL];
@@ -20,11 +21,45 @@ export const ALL_PIXEL_MATERIALS = Object.freeze(
 ) as readonly PixelMaterial[];
 
 // Dense byte tables are also the contract used by the Wasm i8x16.swizzle fast path.
-const DENSITY = new Int8Array([0, 0, 4, 2, -1, 0, 0, 0, 1, -2, 2, 3]);
-const FLUID = new Uint8Array([0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1]);
-const MOVABLE = new Uint8Array([0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1]);
-const COMBUSTIBLE = new Uint8Array([0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0]);
-const HEAT_SOURCE = new Uint8Array([0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1]);
+const DENSITY = new Int8Array([0, 0, 4, 2, -1, 0, 0, 0, 1, -2, 2, 3, 3]);
+const FLUID = new Uint8Array([0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1]);
+const MOVABLE = new Uint8Array([0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1]);
+const COMBUSTIBLE = new Uint8Array([
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  1,
+  1,
+  0,
+  0,
+  0,
+  0,
+]);
+const HEAT_SOURCE = new Uint8Array([
+  0,
+  0,
+  0,
+  0,
+  0,
+  1,
+  0,
+  0,
+  0,
+  0,
+  0,
+  1,
+  0,
+]);
+
+export const PIXEL_GEL_BONDED_FLAG = 1;
+export const PIXEL_GEL_FRACTURED_FLAG = 2;
+export const PIXEL_GEL_FALL_MOMENTUM = 24;
+export const PIXEL_GEL_BREAK_MOMENTUM = 72;
+export const PIXEL_GEL_REBOND_TICKS = 8;
 
 export function materialDensity(material: number): number {
   return DENSITY[material] ?? 0;
@@ -48,4 +83,9 @@ export function materialIsCombustible(material: number): boolean {
 
 export function materialIsHeatSource(material: number): boolean {
   return HEAT_SOURCE[material] === 1;
+}
+
+export function materialIsGelAnchor(material: number): boolean {
+  return material === MATERIAL.wall || material === MATERIAL.sand ||
+    material === MATERIAL.stone || material === MATERIAL.wood;
 }

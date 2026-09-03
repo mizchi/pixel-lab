@@ -5,7 +5,13 @@ import {
 import {
   MATERIAL,
   materialIsCombustible,
+  materialIsGelAnchor,
   materialIsHeatSource,
+  PIXEL_GEL_BONDED_FLAG,
+  PIXEL_GEL_BREAK_MOMENTUM,
+  PIXEL_GEL_FALL_MOMENTUM,
+  PIXEL_GEL_FRACTURED_FLAG,
+  PIXEL_GEL_REBOND_TICKS,
 } from "./pixel_material.ts";
 
 export const PIXEL_AMBIENT_TEMPERATURE = 128;
@@ -17,6 +23,7 @@ const NEIGHBOR_WATER = 1;
 const NEIGHBOR_HEAT_SOURCE = 2;
 const NEIGHBOR_ACID = 4;
 const NEIGHBOR_LAVA = 8;
+const NEIGHBOR_GEL_ANCHOR = 16;
 
 export interface PixelReactionStepResult {
   readonly reactions: number;
@@ -85,8 +92,14 @@ export function stepPixelReactions(
         nextMaterial = MATERIAL.fire;
         kind = PIXEL_EVENT_KIND.ignited;
       }
-      const after =
-        ((before & 0xffff_0000) | temperature << 8 | nextMaterial) >>> 0;
+      const metadata = material === MATERIAL.gel
+        ? nextGelMetadata(
+          before,
+          cells[y + 1 === height ? index : index + width]! & 0xff,
+          neighborFlags,
+        )
+        : before & 0xffff_0000;
+      const after = (metadata | temperature << 8 | nextMaterial) >>> 0;
       scratch[index] = after;
       if (kind !== undefined) {
         reactions++;
@@ -117,11 +130,47 @@ function neighborMaterialFlags(
 }
 
 function materialNeighborFlags(material: number): number {
+  if (materialIsGelAnchor(material)) return NEIGHBOR_GEL_ANCHOR;
   if (material === MATERIAL.water) return NEIGHBOR_WATER;
   if (material === MATERIAL.fire) return NEIGHBOR_HEAT_SOURCE;
   if (material === MATERIAL.acid) return NEIGHBOR_ACID;
   if (material === MATERIAL.lava) return NEIGHBOR_HEAT_SOURCE | NEIGHBOR_LAVA;
   return 0;
+}
+
+function nextGelMetadata(
+  cell: number,
+  bottomMaterial: number,
+  neighborFlags: number,
+): number {
+  const preservedFlags = (cell >>> 16 & 0xff) &
+    ~(PIXEL_GEL_BONDED_FLAG | PIXEL_GEL_FRACTURED_FLAG);
+  const flags = cell >>> 16 & 0xff;
+  const variant = cell >>> 24 & 0xff;
+  const attached = (neighborFlags & NEIGHBOR_GEL_ANCHOR) !== 0;
+  if ((flags & PIXEL_GEL_FRACTURED_FLAG) !== 0) {
+    const cooldown = Math.max(0, variant - 1);
+    if (cooldown === 0 && attached) {
+      return ((preservedFlags | PIXEL_GEL_BONDED_FLAG) << 16) >>> 0;
+    }
+    return (
+      (preservedFlags | (cooldown > 0 ? PIXEL_GEL_FRACTURED_FLAG : 0)) << 16 |
+      cooldown << 24
+    ) >>> 0;
+  }
+  if (attached) {
+    if (variant >= PIXEL_GEL_BREAK_MOMENTUM) {
+      return (
+        (preservedFlags | PIXEL_GEL_FRACTURED_FLAG) << 16 |
+        PIXEL_GEL_REBOND_TICKS << 24
+      ) >>> 0;
+    }
+    return ((preservedFlags | PIXEL_GEL_BONDED_FLAG) << 16) >>> 0;
+  }
+  const momentum = bottomMaterial === MATERIAL.empty
+    ? Math.min(255, variant + PIXEL_GEL_FALL_MOMENTUM)
+    : 0;
+  return (preservedFlags << 16 | momentum << 24) >>> 0;
 }
 
 function diffuseTemperature(

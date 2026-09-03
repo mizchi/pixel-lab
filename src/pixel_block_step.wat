@@ -21,7 +21,7 @@
       i32.const 2
       i32.shl
       local.set $shift
-      i32.const 0x000032e1
+      i32.const 0x000332e1
       local.set $packed
     end
     local.get $packed
@@ -38,23 +38,48 @@
     i32.const 1
     local.get $material
     i32.shl
-    i32.const 0x0f1c
+    i32.const 0x1f1c
     i32.and
     i32.eqz
     i32.eqz)
 
-  (func $is_exchangeable (param $material i32) (result i32)
-    local.get $material
-    i32.eqz
-    local.get $material
-    call $is_movable
-    i32.or)
+  (func $cell_is_bonded_gel (param $cell i32) (result i32)
+    local.get $cell
+    i32.const 255
+    i32.and
+    i32.const 12
+    i32.eq
+    local.get $cell
+    i32.const 16
+    i32.shr_u
+    i32.const 1
+    i32.and
+    i32.const 0
+    i32.ne
+    i32.and)
 
   (func $cell_is_movable (param $cell i32) (result i32)
     local.get $cell
     i32.const 255
     i32.and
-    call $is_movable)
+    call $is_movable
+    local.get $cell
+    call $cell_is_bonded_gel
+    i32.eqz
+    i32.and)
+
+  (func $cell_is_dynamic (param $cell i32) (result i32)
+    local.get $cell
+    call $cell_is_movable)
+
+  (func $cell_is_exchangeable (param $cell i32) (result i32)
+    local.get $cell
+    i32.const 255
+    i32.and
+    i32.eqz
+    local.get $cell
+    call $cell_is_movable
+    i32.or)
 
   (func $should_fall (param $top i32) (param $bottom i32) (result i32)
     (local $top_material i32)
@@ -62,8 +87,9 @@
     local.get $top
     i32.const 255
     i32.and
-    local.tee $top_material
-    call $is_exchangeable
+    local.set $top_material
+    local.get $top
+    call $cell_is_exchangeable
     i32.eqz
     if
       i32.const 0
@@ -72,8 +98,9 @@
     local.get $bottom
     i32.const 255
     i32.and
-    local.tee $bottom_material
-    call $is_exchangeable
+    local.set $bottom_material
+    local.get $bottom
+    call $cell_is_exchangeable
     i32.eqz
     if
       i32.const 0
@@ -89,31 +116,54 @@
     i32.const 1
     local.get $material
     i32.shl
-    i32.const 0x0f18
+    i32.const 0x1f18
     i32.and
     i32.eqz
     i32.eqz)
 
-  (func $should_flow_right (param $left i32) (param $right i32) (result i32)
-    local.get $left
+  (func $cell_is_flowing (param $cell i32) (result i32)
+    local.get $cell
     i32.const 255
     i32.and
     call $is_fluid
+    local.get $cell
+    call $cell_is_bonded_gel
+    i32.eqz
+    i32.and)
+
+  (func $cell_can_flow (param $cell i32) (param $random i32) (result i32)
+    local.get $cell
+    call $cell_is_flowing
+    local.get $cell
+    i32.const 255
+    i32.and
+    i32.const 12
+    i32.ne
+    local.get $random
+    i32.const 192
+    i32.and
+    i32.eqz
+    i32.or
+    i32.and)
+
+  (func $should_flow_right (param $left i32) (param $right i32) (param $random i32) (result i32)
+    local.get $left
+    local.get $random
+    call $cell_can_flow
     local.get $right
     i32.const 255
     i32.and
     i32.eqz
     i32.and)
 
-  (func $should_flow_left (param $left i32) (param $right i32) (result i32)
+  (func $should_flow_left (param $left i32) (param $right i32) (param $random i32) (result i32)
     local.get $left
     i32.const 255
     i32.and
     i32.eqz
     local.get $right
-    i32.const 255
-    i32.and
-    call $is_fluid
+    local.get $random
+    call $cell_can_flow
     i32.and)
 
   (func $block_random
@@ -212,15 +262,15 @@
     local.set $d
 
     local.get $a
-    call $cell_is_movable
+    call $cell_is_dynamic
     local.get $b
-    call $cell_is_movable
+    call $cell_is_dynamic
     i32.or
     local.get $c
-    call $cell_is_movable
+    call $cell_is_dynamic
     i32.or
     local.get $d
-    call $cell_is_movable
+    call $cell_is_dynamic
     i32.or
     i32.eqz
     if
@@ -337,10 +387,12 @@
       if (result i32)
         local.get $a
         local.get $b
+        local.get $random
         call $should_flow_right
       else
         local.get $a
         local.get $b
+        local.get $random
         call $should_flow_left
       end
       if
@@ -373,10 +425,16 @@
       if (result i32)
         local.get $c
         local.get $d
+        local.get $random
+        i32.const 8
+        i32.shr_u
         call $should_flow_right
       else
         local.get $c
         local.get $d
+        local.get $random
+        i32.const 8
+        i32.shr_u
         call $should_flow_left
       end
       if
@@ -497,7 +555,7 @@
     i32.add)
 
   (func $material_density (param $materials v128) (result v128)
-    v128.const i8x16 0 0 4 2 -1 0 0 0 1 -2 2 3 0 0 0 0
+    v128.const i8x16 0 0 4 2 -1 0 0 0 1 -2 2 3 3 0 0 0
     local.get $materials
     i8x16.swizzle
     i32.const 24
@@ -505,8 +563,8 @@
     i32.const 24
     i32x4.shr_s)
 
-  (func $is_movable_vector (param $cells v128) (result v128)
-    v128.const i8x16 0 0 1 1 1 0 0 0 1 1 1 1 0 0 0 0
+  (func $is_movable_material_vector (param $cells v128) (result v128)
+    v128.const i8x16 0 0 1 1 1 0 0 0 1 1 1 1 1 0 0 0
     local.get $cells
     i32.const 255
     i32x4.splat
@@ -516,10 +574,40 @@
     i32x4.splat
     i32x4.ne)
 
-  (func $is_exchangeable_vector (param $materials v128) (result v128)
-    local.get $materials
+  (func $is_dynamic_vector (param $cells v128) (result v128)
+    local.get $cells
+    call $is_movable_vector)
+
+  (func $is_movable_vector (param $cells v128) (result v128)
+    local.get $cells
+    call $is_movable_material_vector
+    local.get $cells
+    i32.const 255
+    i32x4.splat
+    v128.and
+    i32.const 12
+    i32x4.splat
+    i32x4.eq
+    local.get $cells
+    i32.const 16
+    i32x4.shr_u
+    i32.const 1
+    i32x4.splat
+    v128.and
+    i32.const 0
+    i32x4.splat
+    i32x4.ne
+    v128.and
+    v128.not
+    v128.and)
+
+  (func $is_exchangeable_vector (param $cells v128) (result v128)
+    local.get $cells
     call $is_movable_vector
-    local.get $materials
+    local.get $cells
+    i32.const 255
+    i32x4.splat
+    v128.and
     i32.const 0
     i32x4.splat
     i32x4.eq
@@ -538,9 +626,9 @@
     i32x4.splat
     v128.and
     local.set $bottom_materials
-    local.get $top_materials
+    local.get $top
     call $is_exchangeable_vector
-    local.get $bottom_materials
+    local.get $bottom
     call $is_exchangeable_vector
     v128.and
     local.get $top_materials
@@ -551,7 +639,7 @@
     v128.and)
 
   (func $is_fluid_vector (param $cells v128) (result v128)
-    v128.const i8x16 0 0 0 1 1 0 0 0 1 1 1 1 0 0 0 0
+    v128.const i8x16 0 0 0 1 1 0 0 0 1 1 1 1 1 0 0 0
     local.get $cells
     i32.const 255
     i32x4.splat
@@ -559,11 +647,51 @@
     i8x16.swizzle
     i32.const 0
     i32x4.splat
-    i32x4.ne)
+    i32x4.ne
+    local.get $cells
+    i32.const 255
+    i32x4.splat
+    v128.and
+    i32.const 12
+    i32x4.splat
+    i32x4.eq
+    local.get $cells
+    i32.const 16
+    i32x4.shr_u
+    i32.const 1
+    i32x4.splat
+    v128.and
+    i32.const 0
+    i32x4.splat
+    i32x4.ne
+    v128.and
+    v128.not
+    v128.and)
 
-  (func $flow_right_vector (param $left v128) (param $right v128) (result v128)
-    local.get $left
+  (func $cell_can_flow_vector (param $cells v128) (param $random v128) (result v128)
+    local.get $cells
     call $is_fluid_vector
+    local.get $cells
+    i32.const 255
+    i32x4.splat
+    v128.and
+    i32.const 12
+    i32x4.splat
+    i32x4.ne
+    local.get $random
+    i32.const 192
+    i32x4.splat
+    v128.and
+    i32.const 0
+    i32x4.splat
+    i32x4.eq
+    v128.or
+    v128.and)
+
+  (func $flow_right_vector (param $left v128) (param $right v128) (param $random v128) (result v128)
+    local.get $left
+    local.get $random
+    call $cell_can_flow_vector
     local.get $right
     i32.const 255
     i32x4.splat
@@ -573,7 +701,7 @@
     i32x4.eq
     v128.and)
 
-  (func $flow_left_vector (param $left v128) (param $right v128) (result v128)
+  (func $flow_left_vector (param $left v128) (param $right v128) (param $random v128) (result v128)
     local.get $left
     i32.const 255
     i32x4.splat
@@ -582,7 +710,8 @@
     i32x4.splat
     i32x4.eq
     local.get $right
-    call $is_fluid_vector
+    local.get $random
+    call $cell_can_flow_vector
     v128.and)
 
   (func $block_random_vector
@@ -768,15 +897,15 @@
             i8x16.shuffle 4 5 6 7 12 13 14 15 20 21 22 23 28 29 30 31
             local.set $d
             local.get $a
-            call $is_movable_vector
+            call $is_dynamic_vector
             local.get $b
-            call $is_movable_vector
+            call $is_dynamic_vector
             v128.or
             local.get $c
-            call $is_movable_vector
+            call $is_dynamic_vector
             v128.or
             local.get $d
-            call $is_movable_vector
+            call $is_dynamic_vector
             v128.or
             v128.any_true
             if
@@ -954,9 +1083,11 @@
 
             local.get $a
             local.get $b
+            local.get $random
             call $flow_right_vector
             local.get $a
             local.get $b
+            local.get $random
             call $flow_left_vector
             local.get $random
             i32.const 16
@@ -1002,9 +1133,15 @@
 
             local.get $c
             local.get $d
+            local.get $random
+            i32.const 8
+            i32x4.shr_u
             call $flow_right_vector
             local.get $c
             local.get $d
+            local.get $random
+            i32.const 8
+            i32x4.shr_u
             call $flow_left_vector
             local.get $random
             i32.const 32
@@ -1103,12 +1240,12 @@
             i32.add
             local.tee $top_left
             i32.load
-            call $cell_is_movable
+            call $cell_is_dynamic
             local.get $top_left
             i32.const 4
             i32.add
             i32.load
-            call $cell_is_movable
+            call $cell_is_dynamic
             i32.or
             local.get $top_left
             local.get $width
@@ -1117,13 +1254,13 @@
             i32.add
             local.tee $bottom_left
             i32.load
-            call $cell_is_movable
+            call $cell_is_dynamic
             i32.or
             local.get $bottom_left
             i32.const 4
             i32.add
             i32.load
-            call $cell_is_movable
+            call $cell_is_dynamic
             i32.or
             if
               i32.const 1

@@ -9,22 +9,147 @@
     i32.and)
 
   (func $chemistry_property_scalar (param $material i32) (result i32)
+    i32.const 1
     local.get $material
-    i32.const 16
-    i32.lt_u
+    i32.shl
+    i32.const 198
+    i32.and
     if (result i32)
+      i32.const 16
+    else
       i64.const 0xa40000201000
       local.get $material
+      i32.const 2
+      i32.shl
       i64.extend_i32_u
-      i64.const 2
-      i64.shl
       i64.shr_u
       i32.wrap_i64
       i32.const 15
       i32.and
+    end)
+
+  (func $gel_metadata_scalar
+    (param $cell i32)
+    (param $bottom_material i32)
+    (param $neighbor_flags i32)
+    (result i32)
+    (local $flags i32)
+    (local $preserved i32)
+    (local $variant i32)
+    (local $cooldown i32)
+    local.get $cell
+    i32.const 16
+    i32.shr_u
+    i32.const 255
+    i32.and
+    local.tee $flags
+    i32.const 252
+    i32.and
+    local.set $preserved
+    local.get $cell
+    i32.const 24
+    i32.shr_u
+    local.set $variant
+
+    local.get $flags
+    i32.const 2
+    i32.and
+    if
+      local.get $variant
+      i32.const 0
+      i32.gt_u
+      if (result i32)
+        local.get $variant
+        i32.const 1
+        i32.sub
+      else
+        i32.const 0
+      end
+      local.set $cooldown
+      local.get $cooldown
+      i32.eqz
+      local.get $neighbor_flags
+      i32.const 16
+      i32.and
+      i32.const 0
+      i32.ne
+      i32.and
+      if
+        local.get $preserved
+        i32.const 1
+        i32.or
+        i32.const 16
+        i32.shl
+        return
+      end
+      local.get $preserved
+      local.get $cooldown
+      i32.const 0
+      i32.gt_u
+      i32.const 1
+      i32.shl
+      i32.or
+      i32.const 16
+      i32.shl
+      local.get $cooldown
+      i32.const 24
+      i32.shl
+      i32.or
+      return
+    end
+
+    local.get $neighbor_flags
+    i32.const 16
+    i32.and
+    i32.const 0
+    i32.ne
+    if
+      local.get $variant
+      i32.const 72
+      i32.ge_u
+      if
+        local.get $preserved
+        i32.const 2
+        i32.or
+        i32.const 16
+        i32.shl
+        i32.const 8
+        i32.const 24
+        i32.shl
+        i32.or
+        return
+      end
+      local.get $preserved
+      i32.const 1
+      i32.or
+      i32.const 16
+      i32.shl
+      return
+    end
+
+    local.get $preserved
+    i32.const 16
+    i32.shl
+    local.get $bottom_material
+    i32.eqz
+    if (result i32)
+      local.get $variant
+      i32.const 24
+      i32.add
+      local.tee $cooldown
+      i32.const 255
+      i32.gt_u
+      if (result i32)
+        i32.const 255
+      else
+        local.get $cooldown
+      end
     else
       i32.const 0
-    end)
+    end
+    i32.const 24
+    i32.shl
+    i32.or)
 
   (func $event_kind (param $cell i32) (result i32)
     i64.const 0x6004312005
@@ -55,6 +180,7 @@
     (local $material i32)
     (local $temperature i32)
     (local $neighbor_flags i32)
+    (local $metadata i32)
 
     local.get $y
     local.get $width
@@ -314,15 +440,170 @@
       end
     end
 
-    local.get $cell
-    i32.const 0xffff0000
-    i32.and
+    local.get $material
+    i32.const 12
+    i32.eq
+    if (result i32)
+      local.get $cell
+      local.get $cells
+      local.get $bottom
+      i32.const 2
+      i32.shl
+      i32.add
+      i32.load
+      i32.const 255
+      i32.and
+      local.get $neighbor_flags
+      call $gel_metadata_scalar
+    else
+      local.get $cell
+      i32.const 0xffff0000
+      i32.and
+    end
+    local.set $metadata
+    local.get $metadata
     local.get $temperature
     i32.const 8
     i32.shl
     i32.or
     local.get $material
     i32.or)
+
+  (func $gel_metadata_vector
+    (param $cell v128)
+    (param $bottom_cells v128)
+    (param $neighbor_flags v128)
+    (result v128)
+    (local $flags v128)
+    (local $preserved v128)
+    (local $variant v128)
+    (local $attached v128)
+    (local $fractured v128)
+    (local $cooldown v128)
+    (local $cooldown_active v128)
+    (local $reattach v128)
+    (local $fractured_flags v128)
+    (local $free_momentum v128)
+    (local $high_impact v128)
+    (local $low_impact v128)
+    (local $normal_flags v128)
+    (local $normal_variant v128)
+    (local $next_flags v128)
+    (local $next_variant v128)
+
+    local.get $cell
+    i32.const 16
+    i32x4.shr_u
+    v128.const i32x4 255 255 255 255
+    v128.and
+    local.tee $flags
+    v128.const i32x4 252 252 252 252
+    v128.and
+    local.set $preserved
+    local.get $cell
+    i32.const 24
+    i32x4.shr_u
+    local.set $variant
+    local.get $neighbor_flags
+    v128.const i32x4 16 16 16 16
+    v128.and
+    v128.const i32x4 0 0 0 0
+    i32x4.ne
+    local.set $attached
+    local.get $flags
+    v128.const i32x4 2 2 2 2
+    v128.and
+    v128.const i32x4 0 0 0 0
+    i32x4.ne
+    local.set $fractured
+
+    local.get $variant
+    v128.const i32x4 1 1 1 1
+    i32x4.sub
+    v128.const i32x4 0 0 0 0
+    i32x4.max_s
+    local.tee $cooldown
+    v128.const i32x4 0 0 0 0
+    i32x4.gt_u
+    local.set $cooldown_active
+    local.get $cooldown_active
+    v128.not
+    local.get $attached
+    v128.and
+    local.set $reattach
+    local.get $preserved
+    local.get $cooldown_active
+    v128.const i32x4 2 2 2 2
+    v128.and
+    v128.or
+    local.get $reattach
+    v128.const i32x4 1 1 1 1
+    v128.and
+    v128.or
+    local.set $fractured_flags
+
+    local.get $variant
+    v128.const i32x4 24 24 24 24
+    i32x4.add
+    v128.const i32x4 255 255 255 255
+    i32x4.min_u
+    v128.const i32x4 0 0 0 0
+    local.get $bottom_cells
+    v128.const i32x4 255 255 255 255
+    v128.and
+    v128.const i32x4 0 0 0 0
+    i32x4.eq
+    v128.bitselect
+    local.set $free_momentum
+    local.get $attached
+    local.get $variant
+    v128.const i32x4 72 72 72 72
+    i32x4.ge_u
+    v128.and
+    local.set $high_impact
+    local.get $attached
+    local.get $high_impact
+    v128.not
+    v128.and
+    local.set $low_impact
+    local.get $preserved
+    local.get $low_impact
+    v128.const i32x4 1 1 1 1
+    v128.and
+    v128.or
+    local.get $high_impact
+    v128.const i32x4 2 2 2 2
+    v128.and
+    v128.or
+    local.set $normal_flags
+    v128.const i32x4 0 0 0 0
+    local.get $free_momentum
+    local.get $low_impact
+    v128.bitselect
+    local.set $normal_variant
+    v128.const i32x4 8 8 8 8
+    local.get $normal_variant
+    local.get $high_impact
+    v128.bitselect
+    local.set $normal_variant
+
+    local.get $fractured_flags
+    local.get $normal_flags
+    local.get $fractured
+    v128.bitselect
+    local.set $next_flags
+    local.get $cooldown
+    local.get $normal_variant
+    local.get $fractured
+    v128.bitselect
+    local.set $next_variant
+    local.get $next_flags
+    i32.const 16
+    i32x4.shl
+    local.get $next_variant
+    i32.const 24
+    i32x4.shl
+    v128.or)
 
   ;; Returns reactions in the low word and dropped events in the high word.
   (func $emit
@@ -403,6 +684,8 @@
     (local $top_cells v128)
     (local $bottom_cells v128)
     (local $neighbor_flags v128)
+    (local $metadata v128)
+    (local $gel v128)
     (local $boil v128)
     (local $condense v128)
     (local $fire v128)
@@ -549,6 +832,10 @@
             v128.const i32x4 255 255 255 255
             v128.and
             local.tee $material
+            v128.const i32x4 12 12 12 12
+            i32x4.eq
+            local.set $gel
+            local.get $material
             v128.const i32x4 5 5 5 5
             i32x4.eq
             local.get $material
@@ -628,7 +915,7 @@
             i32x4.shr_u
             local.set $temperature
 
-            v128.const i8x16 0 0 0 1 0 2 0 0 0 0 4 10 0 0 0 0
+            v128.const i8x16 0 16 16 1 0 2 16 16 0 0 4 10 0 0 0 0
             local.get $left_cells
             local.get $right_cells
             i8x16.shuffle 0 16 4 20 8 24 12 28 0 0 0 0 0 0 0 0
@@ -766,8 +1053,16 @@
             local.set $next_material
 
             local.get $cell
+            local.get $bottom_cells
+            local.get $neighbor_flags
+            call $gel_metadata_vector
+            local.get $cell
             v128.const i32x4 0xffff0000 0xffff0000 0xffff0000 0xffff0000
             v128.and
+            local.get $gel
+            v128.bitselect
+            local.set $metadata
+            local.get $metadata
             local.get $temperature
             i32.const 8
             i32x4.shl

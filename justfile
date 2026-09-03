@@ -27,9 +27,12 @@ test: build-wasm
 check-bundles: build-web
     node_modules/esbuild/bin/esbuild fixtures/pixel-event-tape-entry.ts --bundle --format=esm --platform=browser --target=es2022 --minify --outfile=fixtures/dist/pixel-event-tape.js
     test "$(gzip -9 -n -c web/dist/assets/pixel_demo-*.js | wc -c | tr -d ' ')" -le 5600
+    test "$(gzip -9 -n -c web/dist/assets/rigid_demo-*.js | wc -c | tr -d ' ')" -le 6900
+    test "$(gzip -9 -n -c web/dist/assets/rigid_demo-*.css | wc -c | tr -d ' ')" -le 400
+    test "$(gzip -9 -n -c web/dist/assets/index-*.js | wc -c | tr -d ' ')" -le 1620
     test "$(gzip -9 -n -c fixtures/dist/pixel-event-tape.js | wc -c | tr -d ' ')" -le 1080
-    test "$(wc -c < src/pixel_block_step.wasm | tr -d ' ')" -le 2390
-    test "$(wc -c < src/pixel_reaction_step.wasm | tr -d ' ')" -le 2355
+    test "$(wc -c < src/pixel_block_step.wasm | tr -d ' ')" -le 2700
+    test "$(wc -c < src/pixel_reaction_step.wasm | tr -d ' ')" -le 3200
 
 test-pages: build-pages
     grep -q '/pixel-lab/assets/' web/dist/index.html

@@ -3,6 +3,7 @@ import {
   materialDensity,
   materialIsFluid,
   materialIsMovable,
+  PIXEL_GEL_BONDED_FLAG,
 } from "./pixel_material.ts";
 
 export const DEFAULT_PIXEL_BLOCK_SEED = 0x51f1_5e5d;
@@ -113,8 +114,8 @@ export function stepPixelBlockRangeUnchecked(
       let c = cells[bottomLeft]!;
       let d = cells[bottomRight]!;
       if (
-        !materialIsMovable(a & 0xff) && !materialIsMovable(b & 0xff) &&
-        !materialIsMovable(c & 0xff) && !materialIsMovable(d & 0xff)
+        !cellIsDynamic(a) && !cellIsDynamic(b) &&
+        !cellIsDynamic(c) && !cellIsDynamic(d)
       ) continue;
       if (!hotNotified && onHotBlock !== undefined) {
         onHotBlock(topLeft, bottomRight);
@@ -166,7 +167,9 @@ export function stepPixelBlockRangeUnchecked(
 
       if ((moved & 0b0011) === 0) {
         if (
-          (random & 0x10) === 0 ? shouldFlowRight(a, b) : shouldFlowLeft(a, b)
+          (random & 0x10) === 0
+            ? shouldFlowRight(a, b, random)
+            : shouldFlowLeft(a, b, random)
         ) {
           const value = a;
           a = b;
@@ -177,7 +180,9 @@ export function stepPixelBlockRangeUnchecked(
       }
       if ((moved & 0b1100) === 0) {
         if (
-          (random & 0x20) === 0 ? shouldFlowRight(c, d) : shouldFlowLeft(c, d)
+          (random & 0x20) === 0
+            ? shouldFlowRight(c, d, random >>> 8)
+            : shouldFlowLeft(c, d, random >>> 8)
         ) {
           const value = c;
           c = d;
@@ -203,21 +208,45 @@ function alignOrigin(value: number, origin: number): number {
 function shouldFall(top: number, bottom: number): boolean {
   const topMaterial = top & 0xff;
   const bottomMaterial = bottom & 0xff;
-  if (topMaterial !== MATERIAL.empty && !materialIsMovable(topMaterial)) {
+  if (!cellIsExchangeable(top)) {
     return false;
   }
-  if (bottomMaterial !== MATERIAL.empty && !materialIsMovable(bottomMaterial)) {
+  if (!cellIsExchangeable(bottom)) {
     return false;
   }
   return materialDensity(topMaterial) > materialDensity(bottomMaterial);
 }
 
-function shouldFlowRight(left: number, right: number): boolean {
-  return materialIsFluid(left & 0xff) && (right & 0xff) === MATERIAL.empty;
+function shouldFlowRight(left: number, right: number, random: number): boolean {
+  return cellCanFlow(left, random) && (right & 0xff) === MATERIAL.empty;
 }
 
-function shouldFlowLeft(left: number, right: number): boolean {
-  return (left & 0xff) === MATERIAL.empty && materialIsFluid(right & 0xff);
+function shouldFlowLeft(left: number, right: number, random: number): boolean {
+  return (left & 0xff) === MATERIAL.empty && cellCanFlow(right, random);
+}
+
+function cellIsExchangeable(cell: number): boolean {
+  const material = cell & 0xff;
+  return material === MATERIAL.empty ||
+    materialIsMovable(material) && !cellIsBondedGel(cell);
+}
+
+function cellIsDynamic(cell: number): boolean {
+  return materialIsMovable(cell & 0xff) && !cellIsBondedGel(cell);
+}
+
+function cellIsFlowing(cell: number): boolean {
+  return materialIsFluid(cell & 0xff) && !cellIsBondedGel(cell);
+}
+
+function cellCanFlow(cell: number, random: number): boolean {
+  return cellIsFlowing(cell) &&
+    ((cell & 0xff) !== MATERIAL.gel || (random & 0xc0) === 0);
+}
+
+function cellIsBondedGel(cell: number): boolean {
+  return (cell & 0xff) === MATERIAL.gel &&
+    (cell >>> 16 & PIXEL_GEL_BONDED_FLAG) !== 0;
 }
 
 function blockRandom(

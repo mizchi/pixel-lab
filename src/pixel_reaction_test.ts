@@ -1,4 +1,11 @@
 import { PIXEL_EVENT_KIND } from "./pixel_event_tape.ts";
+import {
+  PIXEL_GEL_BONDED_FLAG,
+  PIXEL_GEL_BREAK_MOMENTUM,
+  PIXEL_GEL_FALL_MOMENTUM,
+  PIXEL_GEL_FRACTURED_FLAG,
+  PIXEL_GEL_REBOND_TICKS,
+} from "./pixel_material.ts";
 import { stepPixelReactions } from "./pixel_reaction.ts";
 import {
   createPixelMaterialShowcase,
@@ -211,6 +218,56 @@ Deno.test("water extinguishes fire into smoke while the water vaporizes", () => 
   ]);
   assertEquals(pixelFlags(cells[0]!), 2, "fire flags");
   assertEquals(pixelVariant(cells[0]!), 3, "fire variant");
+});
+
+Deno.test("gel bonds to solid surfaces at low momentum", () => {
+  const cells = new Uint32Array([
+    packPixel(MATERIAL.wall),
+    packPixel(MATERIAL.gel, 128, 0, PIXEL_GEL_FALL_MOMENTUM),
+    packPixel(MATERIAL.empty),
+  ]);
+  const scratch = new Uint32Array(cells.length);
+
+  stepPixelReactions(cells, scratch, 3, 1);
+
+  assertEquals(pixelMaterial(cells[1]!), MATERIAL.gel);
+  assertEquals(pixelFlags(cells[1]!), PIXEL_GEL_BONDED_FLAG);
+  assertEquals(pixelVariant(cells[1]!), 0);
+});
+
+Deno.test("high-momentum gel fractures on contact and later re-bonds", () => {
+  const cells = new Uint32Array([
+    packPixel(MATERIAL.wall),
+    packPixel(MATERIAL.gel, 128, 0, PIXEL_GEL_BREAK_MOMENTUM),
+    packPixel(MATERIAL.empty),
+  ]);
+  const scratch = new Uint32Array(cells.length);
+
+  stepPixelReactions(cells, scratch, 3, 1);
+  assertEquals(pixelFlags(cells[1]!), PIXEL_GEL_FRACTURED_FLAG);
+  assertEquals(pixelVariant(cells[1]!), PIXEL_GEL_REBOND_TICKS);
+
+  for (let tick = 0; tick < PIXEL_GEL_REBOND_TICKS; tick++) {
+    stepPixelReactions(cells, scratch, 3, 1);
+  }
+  assertEquals(pixelFlags(cells[1]!), PIXEL_GEL_BONDED_FLAG);
+  assertEquals(pixelVariant(cells[1]!), 0);
+});
+
+Deno.test("free-falling gel accumulates bounded impact momentum", () => {
+  const cells = new Uint32Array([
+    packPixel(MATERIAL.gel),
+    packPixel(MATERIAL.empty),
+  ]);
+  const scratch = new Uint32Array(cells.length);
+
+  stepPixelReactions(cells, scratch, 1, 2);
+  assertEquals(pixelFlags(cells[0]!), 0);
+  assertEquals(pixelVariant(cells[0]!), PIXEL_GEL_FALL_MOMENTUM);
+  for (let tick = 0; tick < 20; tick++) {
+    stepPixelReactions(cells, scratch, 1, 2);
+  }
+  assertEquals(pixelVariant(cells[0]!), 255);
 });
 
 Deno.test("material showcase exposes and can replenish every compound reaction", () => {

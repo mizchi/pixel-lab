@@ -4,6 +4,7 @@ import {
   materialDensity,
   materialIsFluid,
   materialIsMovable,
+  PIXEL_GEL_BONDED_FLAG,
   type PixelMaterial,
 } from "./pixel_material.ts";
 
@@ -222,7 +223,7 @@ export function createPixelMaterialShowcase(
   const cells = new Uint32Array(width * height);
   validateWorld(cells, width, height);
   cells.fill(packPixel(MATERIAL.empty));
-  const columns = 5;
+  const columns = 6;
   const rows = 2;
   const [galleryLeft, galleryTop, galleryWidth, galleryHeight] =
     pixelShowcaseBounds(
@@ -258,6 +259,7 @@ export function createPixelMaterialShowcase(
       [MATERIAL.stone, MATERIAL.wood],
       [MATERIAL.oil, MATERIAL.acid],
       [MATERIAL.fire, MATERIAL.lava],
+      [MATERIAL.gel, MATERIAL.sand],
     ] as const;
     const middle = Math.floor((left + right) / 2);
     for (let y = top + 1; y < bottom; y++) cells[y * width + middle] = wall;
@@ -318,10 +320,13 @@ export function seedPixelMaterialShowcaseInteractions(
     [MATERIAL.lava, MATERIAL.water],
     [MATERIAL.acid, MATERIAL.wood],
     [MATERIAL.fire, MATERIAL.oil],
+    [MATERIAL.gel, MATERIAL.stone],
   ] as const;
   for (let column = 0; column < sourcePairs.length; column++) {
-    const left = galleryLeft + Math.floor(column * galleryWidth / 5);
-    const right = galleryLeft + Math.floor((column + 1) * galleryWidth / 5) - 1;
+    const left = galleryLeft +
+      Math.floor(column * galleryWidth / sourcePairs.length);
+    const right = galleryLeft +
+      Math.floor((column + 1) * galleryWidth / sourcePairs.length) - 1;
     const bottom = galleryTop + galleryHeight - 1;
     const middleX = Math.floor((left + right) / 2);
     const spanX = Math.max(1, Math.floor((right - left - 1) * 0.16));
@@ -363,6 +368,19 @@ export function seedPixelMaterialShowcaseInteractions(
         middleX + spanX + 1,
         y,
         secondMaterial,
+      );
+    }
+    if (column === sourcePairs.length - 1) {
+      const impactGel = packPixel(
+        MATERIAL.gel,
+        128,
+        0,
+        96,
+      );
+      cells.fill(
+        impactGel,
+        (rowTop + 2) * width + middleX - spanX,
+        (rowTop + 2) * width + middleX + spanX + 1,
       );
     }
   }
@@ -464,7 +482,7 @@ function horizontalFluidPass(
       const source = parity === 0 ? right : left;
       const destination = parity === 0 ? left : right;
       if (
-        materialIsFluid(pixelMaterial(cells[source]!)) &&
+        cellIsFlowing(cells[source]!) &&
         pixelMaterial(cells[destination]!) === MATERIAL.empty
       ) {
         swap(cells, source, destination);
@@ -478,13 +496,28 @@ function horizontalFluidPass(
 function fallsThrough(top: number, bottom: number): boolean {
   const topMaterial = pixelMaterial(top);
   const bottomMaterial = pixelMaterial(bottom);
-  if (topMaterial !== MATERIAL.empty && !materialIsMovable(topMaterial)) {
+  if (!cellIsExchangeable(top)) {
     return false;
   }
-  if (bottomMaterial !== MATERIAL.empty && !materialIsMovable(bottomMaterial)) {
+  if (!cellIsExchangeable(bottom)) {
     return false;
   }
   return materialDensity(topMaterial) > materialDensity(bottomMaterial);
+}
+
+function cellIsExchangeable(cell: number): boolean {
+  const material = pixelMaterial(cell);
+  return material === MATERIAL.empty ||
+    materialIsMovable(material) && !cellIsBondedGel(cell);
+}
+
+function cellIsFlowing(cell: number): boolean {
+  return materialIsFluid(pixelMaterial(cell)) && !cellIsBondedGel(cell);
+}
+
+function cellIsBondedGel(cell: number): boolean {
+  return pixelMaterial(cell) === MATERIAL.gel &&
+    (pixelFlags(cell) & PIXEL_GEL_BONDED_FLAG) !== 0;
 }
 
 function swap(cells: Uint32Array, left: number, right: number): void {

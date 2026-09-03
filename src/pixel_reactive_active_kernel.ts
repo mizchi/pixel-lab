@@ -72,7 +72,7 @@ export class WasmReactiveActiveSimdPixelBlock {
       const index = reaction.events[event + 1]! >>> 0;
       const x = index % this.reaction.width;
       const y = Math.floor(index / this.reaction.width);
-      this.movement.activateRect(x, y, x, y);
+      this.movement.markCellChanged(x, y);
     }
     return {
       ...movement,
@@ -106,6 +106,19 @@ export class WasmReactiveActiveSimdPixelBlock {
 
   activateRect(left: number, top: number, right: number, bottom: number): void {
     this.movement.activateRect(left, top, right, bottom);
+  }
+
+  enableRegionRevisions(): void {
+    this.movement.enableRegionRevisions();
+  }
+
+  regionRevision(
+    left: number,
+    top: number,
+    right: number,
+    bottom: number,
+  ): number {
+    return this.movement.regionRevision(left, top, right, bottom);
   }
 
   get cells(): Uint32Array {

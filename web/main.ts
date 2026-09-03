@@ -26,6 +26,9 @@ if (run === "pixel-block-webgpu-event-bench") {
     pixelBlockWebGpuEventCheck: await checkPixelBlockWebGpuEvents(),
     pixelReactionWebGpuEventCheck: await checkPixelReactionWebGpuEvents(),
   });
+} else if (run === "rigid") {
+  const { mountRigidDemo } = await import("./rigid_demo.ts");
+  await mountRigidDemo(document.querySelector("main")!);
 } else if (run === "pixel") {
   const width = parsePixelWidth(params.get("size"));
   const { mountPixelDemo } = await import("./pixel_demo.ts");

@@ -179,11 +179,13 @@ export async function mountPixelDemo(
               "STONE · WOOD",
               "OIL · ACID",
               "FIRE · LAVA",
+              "GEL · SAND",
               "DENSITY SWAP",
               "WATER → STEAM",
               "LAVA → STONE",
               "ACID → VOID",
               "FUEL → FIRE",
+              "GEL → SPLIT",
             ].map((label) => ui.element("span", {}, [label])),
           )]
           : []),
@@ -420,6 +422,10 @@ export async function mountPixelDemo(
             className: "pixel-life-link",
             href: "https://github.com/mizchi/pixel-lab/blob/main/RESEARCH.md",
           }, ["Research notes"]),
+          ui.element("a", {
+            className: "pixel-life-link",
+            href: "?run=rigid",
+          }, ["Rigid lab"]),
         ]),
         ui.element("p", { className: "life-hint" }, [
           ui.text(

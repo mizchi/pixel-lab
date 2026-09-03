@@ -1,5 +1,6 @@
 import { WasmActiveSimdPixelBlock } from "./pixel_block_active_kernel.ts";
 import { WasmSimdPixelBlock } from "./pixel_block_kernel.ts";
+import { PIXEL_GEL_BONDED_FLAG } from "./pixel_material.ts";
 import {
   countPixelMaterials,
   MATERIAL,
@@ -83,4 +84,53 @@ Deno.test("active SIMD blocks cool an idle world and can be woken", async () => 
   const moved = active.step(4);
   assertEquals(woken.activeChunks > 0, true, "brush wakes chunks");
   assertEquals(moved.moves > 0, true, "painted sand moves");
+});
+
+Deno.test("active SIMD lets fully bonded gel chunks sleep", async () => {
+  const width = 64;
+  const height = 64;
+  const cells = new Uint32Array(width * height);
+  cells[32 * width + 32] = packPixel(
+    MATERIAL.gel,
+    128,
+    PIXEL_GEL_BONDED_FLAG,
+  );
+  cells[33 * width + 32] = packPixel(MATERIAL.wall);
+  const active = await WasmActiveSimdPixelBlock.create(cells, width, height);
+
+  active.step(0);
+  active.step(1);
+  const sleeping = active.step(2);
+
+  assertEquals(sleeping, { moves: 0, activeChunks: 0 });
+});
+
+Deno.test("active SIMD revisions change only around moved chunks", async () => {
+  const width = 96;
+  const height = 64;
+  const cells = new Uint32Array(width * height);
+  cells[8 * width + 8] = packPixel(MATERIAL.sand);
+  const active = await WasmActiveSimdPixelBlock.create(cells, width, height);
+  const baseBytes = active.residentBytes;
+  active.enableRegionRevisions();
+  assertEquals(
+    active.residentBytes,
+    baseBytes + active.chunkCount * Uint32Array.BYTES_PER_ELEMENT,
+    "revision storage is opt-in",
+  );
+  const nearBefore = active.regionRevision(0, 0, 31, 31);
+  const farBefore = active.regionRevision(64, 0, 95, 31);
+
+  active.step(0);
+
+  assertEquals(
+    active.regionRevision(0, 0, 31, 31) > nearBefore,
+    true,
+    "moved chunk revision advances",
+  );
+  assertEquals(
+    active.regionRevision(64, 0, 95, 31),
+    farBefore,
+    "unrelated chunk revision stays stable",
+  );
 });
